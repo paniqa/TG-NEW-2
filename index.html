@@ -1,0 +1,444 @@
+<!DOCTYPE html>
+<html lang="ru">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Чиркаши Игра</title>
+    <script src="https://telegram.org/js/telegram-web-app.js"></script>
+    <style>
+        :root {
+            --primary-color: #555555; /* Серый вместо Midnight Blue */
+            --secondary-color: #888888; /* Серый вместо Royal Blue */
+            --background-color: #f0f0f0;
+            --card-color: #ffffff;
+        }
+        
+        body {
+            font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+            margin: 0;
+            padding: 10px;
+            background-color: var(--background-color);
+            color: #333;
+        }
+        
+        .header {
+            background-color: var(--primary-color);
+            color: white;
+            padding: 15px;
+            border-radius: 10px;
+            margin-bottom: 15px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            box-shadow: 0 2px 5px rgba(0,0,0,0.1);
+        }
+        
+        .tabs {
+            display: flex;
+            margin-bottom: 15px;
+            overflow-x: auto;
+            scrollbar-width: none;
+        }
+        
+        .tabs::-webkit-scrollbar {
+            display: none;
+        }
+        
+        .tab {
+            padding: 12px 20px;
+            background-color: #e0e0e0;
+            margin-right: 8px;
+            border-radius: 8px 8px 0 0;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            white-space: nowrap;
+            font-weight: 500;
+        }
+        
+        .tab.active {
+            background-color: var(--primary-color);
+            color: white;
+            transform: translateY(-2px);
+        }
+        
+        .tab:hover {
+            background-color: #d0d0d0;
+        }
+        
+        .tab-content {
+            display: none;
+            background-color: var(--card-color);
+            padding: 20px;
+            border-radius: 0 10px 10px 10px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            animation: fadeIn 0.5s ease;
+        }
+        
+        @keyframes fadeIn {
+            from { opacity: 0; transform: translateY(10px); }
+            to { opacity: 1; transform: translateY(0); }
+        }
+        
+        .tab-content.active {
+            display: block;
+        }
+        
+        .monster-container {
+            text-align: center;
+            margin: 25px 0;
+        }
+        
+        .monster {
+            width: 180px;
+            height: 180px;
+            margin: 0 auto;
+            background-image: url('https://characterai.io/i/200/static/avatars/uploaded/2023/2/3/hWOg0n8UV8vX6DeFPP2lB9hWr5VQqrcQP7aRs-6-zR8.webp');
+            background-size: cover;
+            border-radius: 50%;
+            cursor: pointer;
+            transition: all 0.3s;
+            box-shadow: 0 4px 15px rgba(0,0,0,0.2);
+            position: relative;
+            overflow: hidden;
+        }
+        
+        .monster::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background: rgba(0,0,0,0.1);
+            border-radius: 50%;
+            opacity: 0;
+            transition: opacity 0.3s;
+        }
+        
+        .monster:hover::after {
+            opacity: 1;
+        }
+        
+        .monster.hit {
+            animation: hitAnimation 0.3s;
+        }
+        
+        @keyframes hitAnimation {
+            0% { transform: scale(1); }
+            50% { transform: scale(0.9); filter: brightness(1.5) hue-rotate(-30deg); }
+            100% { transform: scale(1); }
+        }
+        
+        .cards-container {
+            display: grid;
+            grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .card {
+            background-color: var(--card-color);
+            border-radius: 10px;
+            overflow: hidden;
+            box-shadow: 0 3px 10px rgba(0,0,0,0.1);
+            transition: all 0.3s ease;
+            cursor: pointer;
+            position: relative;
+        }
+        
+        .card:hover {
+            transform: translateY(-5px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        
+        .card-image {
+            width: 100%;
+            height: 120px;
+            object-fit: cover;
+        }
+        
+        .card-title {
+            padding: 12px;
+            text-align: center;
+            font-weight: 500;
+        }
+        
+        .card-description {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            background-color: rgba(85, 85, 85, 0.9); /* Серый вместо синего */
+            color: white;
+            padding: 10px;
+            transform: translateY(100%);
+            transition: transform 0.3s ease;
+            font-size: 14px;
+        }
+        
+        .card:hover .card-description {
+            transform: translateY(0);
+        }
+        
+        .confirmation-overlay {
+            position: fixed;
+            top: 0;
+            left: 0;
+            right: 0;
+            bottom: 0;
+            background-color: rgba(0,0,0,0.7);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            z-index: 1000;
+            opacity: 0;
+            visibility: hidden;
+            transition: all 0.3s ease;
+        }
+        
+        .confirmation-overlay.active {
+            opacity: 1;
+            visibility: visible;
+        }
+        
+        .confirmation-box {
+            background-color: white;
+            padding: 25px;
+            border-radius: 10px;
+            width: 80%;
+            max-width: 300px;
+            text-align: center;
+            transform: scale(0.9);
+            transition: transform 0.3s ease;
+        }
+        
+        .confirmation-overlay.active .confirmation-box {
+            transform: scale(1);
+        }
+        
+        .confirmation-buttons {
+            display: flex;
+            justify-content: center;
+            gap: 15px;
+            margin-top: 20px;
+        }
+        
+        .confirmation-btn {
+            padding: 8px 20px;
+            border: none;
+            border-radius: 5px;
+            cursor: pointer;
+            font-weight: 500;
+            transition: all 0.2s;
+        }
+        
+        .confirmation-btn.yes {
+            background-color: var(--primary-color); /* Серый */
+            color: white;
+        }
+        
+        .confirmation-btn.no {
+            background-color: #e0e0e0;
+        }
+        
+        .confirmation-btn:hover {
+            opacity: 0.9;
+            transform: translateY(-2px);
+        }
+    </style>
+</head>
+<body>
+    <div class="header">
+        <div>Чиркаши: <span id="currency">0</span></div>
+    </div>
+
+    <div class="tabs">
+        <div class="tab active" onclick="showTab('fields')">Поля</div>
+        <div class="tab" onclick="showTab('character')">Персонаж</div>
+        <div class="tab" onclick="showTab('items')">Предметы</div>
+        <div class="tab" onclick="showTab('premium')">Премиум</div>
+    </div>
+
+    <div id="fields" class="tab-content active">
+        <h2>Поля</h2>
+        <p>Кликните на монстра, чтобы заработать Чиркаши</p>
+        <div class="monster-container">
+            <div class="monster" id="monster" onclick="earnCurrency()"></div>
+        </div>
+    </div>
+
+    <div id="character" class="tab-content">
+        <h2>Персонажи</h2>
+        <div class="cards-container">
+            <div class="card" onclick="selectCharacter('josephine')">
+                <img src="https://i.imgur.com/pXWzE3k.png" class="card-image" alt="Жозефина" onerror="this.src='https://via.placeholder.com/150/555555/FFFFFF?text=Ж'">
+                <div class="card-title">Жозефина</div>
+                <div class="card-description">Выберите этого персонажа</div>
+            </div>
+            <div class="card" onclick="selectCharacter('alice')">
+                <img src="https://i.imgur.com/QZqYV9d.png" class="card-image" alt="Алиса" onerror="this.src='https://via.placeholder.com/150/555555/FFFFFF?text=А'">
+                <div class="card-title">Алиса</div>
+                <div class="card-description">Выберите этого персонажа</div>
+            </div>
+            <div class="card" onclick="selectCharacter('vasilisa')">
+                <img src="https://i.imgur.com/7n8W6cL.png" class="card-image" alt="Василиса" onerror="this.src='https://via.placeholder.com/150/555555/FFFFFF?text=В'">
+                <div class="card-title">Василиса</div>
+                <div class="card-description">Выберите этого персонажа</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="items" class="tab-content">
+        <h2>Магазин</h2>
+        <div class="cards-container">
+            <div class="card" onclick="showConfirmation('potion', 50)">
+                <img src="https://i.imgur.com/LpYtQ3W.png" class="card-image" alt="Зелье силы" onerror="this.src='https://via.placeholder.com/150/555555/FFFFFF?text=Зелье'">
+                <div class="card-title">Зелье силы</div>
+                <div class="card-description">Этот товар можно приобрести за 50 Чиркашей</div>
+            </div>
+            <div class="card" onclick="showConfirmation('sword', 100)">
+                <img src="https://i.imgur.com/9zKm3tP.png" class="card-image" alt="Каловой меч" onerror="this.src='https://via.placeholder.com/150/555555/FFFFFF?text=Меч'">
+                <div class="card-title">Каловой меч</div>
+                <div class="card-description">Этот товар можно приобрести за 100 Чиркашей</div>
+            </div>
+            <div class="card" onclick="showConfirmation('sock', 150)">
+                <img src="https://i.imgur.com/vVk8VYr.png" class="card-image" alt="Носок невидимости" onerror="this.src='https://via.placeholder.com/150/555555/FFFFFF?text=Носок'">
+                <div class="card-title">Носок невидимости</div>
+                <div class="card-description">Этот товар можно приобрести за 150 Чиркашей</div>
+            </div>
+        </div>
+    </div>
+
+    <div id="premium" class="tab-content">
+        <h2>Премиум</h2>
+        <div class="cards-container">
+            <div class="card" onclick="showConfirmation('premium', 250)">
+                <img src="https://i.imgur.com/mR9WwXg.png" class="card-image" alt="Премиум подписка" onerror="this.src='https://via.placeholder.com/150/555555/FFFFFF?text=Премиум'">
+                <div class="card-title">Премиум подписка</div>
+                <div class="card-description">Активируйте премиум на 1 месяц за 250 Чиркашей</div>
+            </div>
+        </div>
+    </div>
+
+    <div class="confirmation-overlay" id="confirmationOverlay">
+        <div class="confirmation-box">
+            <h3 id="confirmationText">Вы уверены что хотите купить этот товар за 100 Чиркашей?</h3>
+            <div class="confirmation-buttons">
+                <button class="confirmation-btn yes" onclick="confirmPurchase()">Да</button>
+                <button class="confirmation-btn no" onclick="hideConfirmation()">Нет</button>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // Инициализация Telegram WebApp
+        Telegram.WebApp.ready();
+        Telegram.WebApp.expand();
+
+        // Состояние игры
+        const gameState = {
+            currency: 0,
+            selectedCharacter: null,
+            inventory: [],
+            currentPurchase: null
+        };
+
+        // Элементы интерфейса
+        const elements = {
+            currency: document.getElementById('currency'),
+            monster: document.getElementById('monster'),
+            confirmationOverlay: document.getElementById('confirmationOverlay'),
+            confirmationText: document.getElementById('confirmationText')
+        };
+
+        // Показать вкладку с анимацией
+        function showTab(tabId) {
+            document.querySelectorAll('.tab-content').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            document.querySelectorAll('.tab').forEach(tab => {
+                tab.classList.remove('active');
+            });
+            
+            document.getElementById(tabId).classList.add('active');
+            document.querySelector(`.tab[onclick="showTab('${tabId}')"]`).classList.add('active');
+        }
+
+        // Заработать валюту
+        function earnCurrency() {
+            const monster = document.getElementById('monster');
+            monster.classList.add('hit');
+            setTimeout(() => {
+                monster.classList.remove('hit');
+            }, 300);
+            
+            gameState.currency++;
+            updateUI();
+        }
+
+        // Выбрать персонажа
+        function selectCharacter(character) {
+            gameState.selectedCharacter = character;
+            updateUI();
+            alert(`Вы выбрали персонажа: ${getCharacterName(character)}`);
+        }
+
+        // Показать подтверждение покупки
+        function showConfirmation(item, price) {
+            gameState.currentPurchase = { item, price };
+            elements.confirmationText.textContent = `Вы уверены что хотите купить ${getItemName(item)} за ${price} Чиркашей?`;
+            elements.confirmationOverlay.classList.add('active');
+        }
+
+        // Скрыть подтверждение
+        function hideConfirmation() {
+            elements.confirmationOverlay.classList.remove('active');
+        }
+
+        // Подтвердить покупку
+        function confirmPurchase() {
+            const { item, price } = gameState.currentPurchase;
+            if (gameState.currency >= price) {
+                gameState.currency -= price;
+                gameState.inventory.push(item);
+                updateUI();
+                alert(`Вы успешно купили ${getItemName(item)}!`);
+            } else {
+                alert('Недостаточно Чиркашей!');
+            }
+            hideConfirmation();
+        }
+
+        // Получить название персонажа
+        function getCharacterName(character) {
+            const names = {
+                josephine: 'Жозефина',
+                alice: 'Алиса',
+                vasilisa: 'Василиса'
+            };
+            return names[character] || character;
+        }
+
+        // Получить название предмета
+        function getItemName(item) {
+            const names = {
+                potion: 'Зелье силы',
+                sword: 'Каловой меч',
+                sock: 'Носок невидимости',
+                premium: 'Премиум подписку'
+            };
+            return names[item] || item;
+        }
+
+        // Обновить интерфейс
+        function updateUI() {
+            elements.currency.textContent = gameState.currency;
+        }
+
+        // Инициализация
+        document.addEventListener('DOMContentLoaded', () => {
+            updateUI();
+        });
+    </script>
+</body>
+</html>
